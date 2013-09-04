@@ -1,0 +1,69 @@
+[[NavBar]]
+[[SiblingNav]]
+
+== External Resources ==
+ - [http://www.revsys.com/writings/postgresql-performance.html Performance Tuning PostgreSQL] by !RevSys[[BR]]
+   A good overview of major performance issues/techniques including both SQL and server configuration
+ - [http://www.postgresql.org/docs/8.4/static/indexes.html Postgresql Indexes Overview][[BR]]
+     blockquote
+   A very thorough breakdown of how indexes can be used
+
+== SwatDB::setDebug() ==
+SwatDB debug now shows how long each query takes. This is extremely useful in tuning queries.
+
+== Counting rows in very large recordsets: ==
+While one would think that counting rows in large recordsets would be pretty straightforward, it's actually a major concern. The reason ([http://wiki.postgresql.org/wiki/Slow_Counting better explanation]) is that an MVCC database has to check each row to make sure it's in a valid state (i.e. not in a transaction waiting to be inserted/deleted) before counting. This effectively makes the count query query all the rows in the table and then count them. Possible solutions include:
+ - you can quickly get an estimate of all of the rows in the table by looking at reltuples stats. (see an example in the page linked above). This only works if you don't have any conditional logic on the table, which is rare in the way we do things (unless we decided to start using [http://www.postgresql.org/docs/8.2/static/ddl-partitioning.html pgsql partition tables]).
+ - [http://blog.charcoalphile.com/2007/12/12/postgresql-count-workaround/ triggers could be used to maintain a count in another table]. This works, but our experience has been that triggers make any bulk updates very slow.
+ - For pagination, the method we chose to use was to only count an exact number of rows up to a certain threshold, and then just looking forward one record to see if there's an additional page. SwatPagination now supports this behavior and it works quite well for something like the Shot photo search.
+
+== Loading images efficiently: ==
+!SiteImageWrapper is set up to automatically pre-load image-dimension information for all images. This is quite convenient and quick for small sets of images, but gets slow when there are thousands of rows in the !ImageDimensionBinding table. We've previously made this more efficient with custom wrapper classes that load only a single dimension. I've just added another new wrapper that allows loading either no dimensions or specific dimensions efficiently:
+{{{
+#!sql
+$wrapper = SwatDB::query($db, 'select * from Image', 'MyImageLazyWrapper');
+$wrapper->loadDimensions(array('thumbnail', 'original'));
+}}}
+
+== Indexes ==
+=== Replacement for some LIKE queries: ===
+A common query on shot and pinhole is to query a set of tags based on a 'LIKE' statement. With a large recordset, and a case-altering function, these can become very slow. For example, on shot with 189,444 tags: {{{ select * from Tag where lower(title) like 'nic%'; }}} takes 500ms. This can be sped up significantly by adding indexes such as:
+{{{
+#!sql
+--  the autocomplete search on shot only begins when 3 characters have been entered
+CREATE INDEX Tag_title3_index on Tag(lower(substring(title from 1 for 3)));
+CREATE INDEX Tag_title4_index on Tag(lower(substring(title from 1 for 4)));
+CREATE INDEX Tag_title5_index on Tag(lower(substring(title from 1 for 5)));
+-- etc…
+}}}
+and querying them like this: {{{ select * from Tag where lower(substring(title from 1 for 3)) = 'nic'; }}} query time 5ms!
+
+== Slow joins ==
+We've recently started noticing, using ''explain analyze'' on some slow queries, that indexes aren't being used, or a join includes all the rows in the table table. For instance, this query to load an account on Shot queries all the rows in Account:
+
+{{{
+#!sql
+select Account.* from Account
+inner join PublicAccountView on PublicAccountView.account = Account.id
+where Account.username = 'username'
+}}}
+Takes 10 seconds.
+
+This can be seriously improved by querying:
+
+{{{
+#!sql
+select Account.* from Account where id =
+	(select account from PublicAccountView where account =
+		(select Account.id from Account where Account.username = 'daniel' and Account.delete_date is null));
+}}}
+Takes 50ms.
+
+The efficiency of the above query relies on no "in" clauses, hence the "Account.delete_date is null" conditional. If it were written:
+{{{
+#!sql
+select Account.* from Account where id =
+	(select account from PublicAccountView where account IN
+		(select Account.id from Account where Account.username = 'daniel'));
+}}}
+it would be slow again.
