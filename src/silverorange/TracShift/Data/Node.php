@@ -39,7 +39,7 @@ class Node
 			$parent = $parent->getParent();
 		}
 
-		if (!is_array($this->children, $node)) {
+		if (!in_array($node, $this->children)) {
 			$this->children[] = $node;
 			$node->parent = $this;
 		}
@@ -66,7 +66,7 @@ class Node
 
 	public function __toString()
 	{
-		return $this->getName();
+		return $this->toStringRecursive();
 	}
 
 	public function __clone()
@@ -78,5 +78,16 @@ class Node
 			$children[] = $clone;
 		}
 		$this->children = $children;
+	}
+
+	protected function toStringRecursive($depth = 0)
+	{
+		$string = str_repeat('  ', $depth) . $this->getName() . PHP_EOL;
+
+		foreach ($this->getChildren() as $child) {
+			$string .= $child->toStringRecursive($depth + 1);
+		}
+
+		return $string;
 	}
 }
