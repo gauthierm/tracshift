@@ -106,6 +106,6 @@ class Token
 	public function __toString()
 	{
 		return self::$tokenNameMap[$this->type]
-			. ' :: ' . addcslashes($this->content, "\r\n\t");
+			. ' :: "' . addcslashes($this->content, "\r\n\t") . '"';
 	}
 }
