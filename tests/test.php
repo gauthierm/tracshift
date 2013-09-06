@@ -7,3 +7,4 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 $parser = new silverorange\TracShift\Parser\Parser();
 $tree = $parser->parseFile(__DIR__ . '/test-document.txt');
+echo $tree;
