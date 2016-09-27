@@ -1,0 +1,75 @@
+(* vim: set expandtab ts=2 sw=2 softtabstop=2 *)
+
+       uppercase-letter = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" |
+                          "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" |
+                          "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" |
+       lowercase-letter = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" |
+                          "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" |
+                          "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
+                 letter = uppercase-letter | lowercase-letter ;
+
+                  digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" |
+                          "0" ;
+
+                 symbol = "[" | "]" | "{" | "}" | "(" | ")" | "<" | ">" | "=" |
+                          "|" | "." | "," | ";" | "~" | "!" | "@" | "#" | "$" |
+                          "%" | "^" | "&" | "*" | "-" | "+" | "_" | ":" | "?" |
+                          "\" | "/" | "`" ;
+
+           double-space = "  " ;
+            white-space = { " " | "\t" | "" } ;
+     leading-whitespace = { " " | "\t" | "\n" } ;
+                newline = "\n" ;
+         double-newline = newline , newline ;
+
+             identifier = letter , { letter | digit } ;
+
+       string-character = letter | digit | symbol | white-space ;
+   double-quoted-string = '"' , { string-character | '\"' } , '"' ;
+   single-quoted-string = "'" , { string-character | "\'" } , "'" ;
+          quoted-string = double-quoted-string | single-quoted-string ;
+
+  macro-argument-symbol = "#" | "." | ":" | "\" | "/" | "=" ;
+         macro-argument = quoted-string |
+                          ( letter | digit ), { letter | digit | macro-argument-symbol } ;
+    macro-argument-list = white-space , macro-argument ,
+                          [ { white-space , "," , white-space , macro-argument } ] ,
+                          white-space ;
+                  macro = "[[" , white-space , identifier, white-space ,
+                          [ "(" , macro-argument-list , ")" , white-space ] ,
+                          "]]" ;
+
+              paragraph = { text | inline-element | link | macro | wiki-auto-link } , double-newline ;
+
+           web-protocol = ( "http" | "https" | "mailto" | "ftp" ) , ":" ;
+         web-url-symbol = "-" | "." | "_" | "~" | ":" | "/" | "?" | "#" |
+                          "[" | "]" | "@" | "!" | "$" | "&" | "'" | "(" |
+                          ")" | "*" | "+" | "," | ";" | "=" | "." ;
+                web-url = web-protocol , { letter | digit | web-url-symbol } ;
+
+              wiki-word = uppercase-letter , lowercase-letter , { lowercase-letter } ,
+                          uppercase-letter , lowercase-letter , { lowercase-letter } ,
+                          { uppercase-letter , lowercase-letter , { lowercase-letter } } ;
+              wiki-link = wiki-word , { "/" , wiki-word } ;
+               wiki-url = "wiki:" , wiki-link ;
+         wiki-auto-link = leading-whitespace , wiki-link ;
+
+               link-url = web-url | wiki-url ;
+            link-symbol = "[" | "{" | "}" | "(" | ")" | "<" | ">" | "=" |
+                          "|" | "." | "," | ";" | "~" | "!" | "@" | "#" | "$" |
+                          "%" | "^" | "&" | "*" | "-" | "+" | "_" | ":" | "?" |
+                          "\" | "/" | "`" ;
+             link-title = { letter | digit | white-space | link-symbol }
+                   link = "[" , link-url , [ white-space , link-title ] , "]" ;
+
+                   text = inline-element | white-space
+
+         header-content = { text | inline-element | white-space
+                header5 = new-line , "=====" , header-content , "=====" ;
+                header4 = new-line , "====" , header-content , "====" ;
+                header3 = new-line , "===" , header-content , "===" ;
+                header2 = new-line , "==" , header-content , "==" ;
+                header1 = new-line , "=" , header-content , "=" ;
+
+
+        horizontal-rule = new-line , "----" , { "-" } ;
